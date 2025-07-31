@@ -29,6 +29,4 @@ Issues = "https://github.com/pypa/sampleproject/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/py_az_vm_controller"]
 
-[project.scripts]
-py-az-vm-controller="py_az_vm_controller._cmd.run:main"
 
