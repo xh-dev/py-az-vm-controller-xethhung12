@@ -27,6 +27,6 @@ Homepage = "https://github.com/pypa/sampleproject"
 Issues = "https://github.com/pypa/sampleproject/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/py_az_vm_controller"]
+packages = ["src/py_az_vm_controller_xethhung12"]
 
 
