@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 
 [project]
-name = "py_az_vm_controller"
+name = "py-az-vm-controller-xethhung12"
 version = "0.0.1"
 authors = [
   { name="Xeth Hung", email="admin@xethh.me" },
