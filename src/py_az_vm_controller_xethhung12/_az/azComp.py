@@ -59,9 +59,6 @@ class AzVM:
         self.vmName = vmName
     
     def powerOn(self):
-        if self.isVMRunning():
-            print("Running already")
-            return 
         headers = {
             "Content-Length": str(0),
             "Content-Type": "application/json",
@@ -69,17 +66,13 @@ class AzVM:
         }
         resp = requests.post(self.url("start"), {},headers=headers)
         if resp.status_code in [200,202]:
-            return 
+            return resp
         else:
-            print(resp.content)
+            print(resp.cotent)
             raise Exception(f"Error with response code: {resp.status_code}")
 
 
     def powerOff(self):
-        if self.isVMStopped():
-            print("Stopped already")
-            return 
-        
         headers = {
             "Content-Length": str(0),
             "Content-Type": "application/json",
@@ -87,15 +80,40 @@ class AzVM:
         }
         resp = requests.post(self.url("powerOff"),{},headers=headers)
         if resp.status_code in [200,202]:
-            return 
+            return resp
         else:
             print(resp.content)
             raise Exception(f"Error with response code: {resp.status_code}")
 
+    def deallocate(self):
+        headers = {
+            "Content-Length": str(0),
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.azOAuthSession.get_token()}"
+        }
+        resp = requests.post(self.url("deallocate"),{},headers=headers)
+        if resp.status_code in [200,202]:
+            return resp
+        else:
+            print(resp.content)
+            raise Exception(f"Error with response code: {resp.status_code}")
         
     def url(self, action: str):
         return f"https://management.azure.com/subscriptions/{self.subscriptionId}/resourceGroups/{self.resourceGroup}/providers/Microsoft.Compute/virtualMachines/{self.vmName}/{action}?api-version=2024-11-01"
     
+    def simpleState(self, data:dict = None)->dict:
+        if data is None:
+            data = self.instanceState()
+        powerState = self.powerState(data)
+        provisioningState = self.provisioningState(data)
+
+        return {
+            "name": self.vmName,
+            "provisioning-state": provisioningState,
+            "power-state": powerState
+        }
+
+
     def instanceState(self)->dict:
         headers = {
             "Content-Length": str(0),
@@ -112,8 +130,10 @@ class AzVM:
         else:
             raise Exception(f"Error with response code: {resp.status_code}")
 
-    def ProvisioningState(self):
-        for status in self.instanceState()["statuses"]:
+    def provisioningState(self, data: dict = None):
+        if data is None:
+            data = self.instanceState()
+        for status in data["statuses"]:
             code = status['code']
             prefix="ProvisioningState/"
             if code.startswith(prefix):
@@ -121,8 +141,10 @@ class AzVM:
                 
         return None
     
-    def powerState(self):
-        for status in self.instanceState()["statuses"]:
+    def powerState(self, data:dict = None):
+        if data is None:
+            data = self.instanceState()
+        for status in data["statuses"]:
             code = status['code']
             prefix="PowerState/"
             if code.startswith(prefix):
@@ -130,25 +152,33 @@ class AzVM:
                 
         return None
 
-    def isProvissioning(self)->bool:
-        return self.ProvisioningState() == "updating"
+    def isProvissioning(self, data: dict = None)->bool:
+        if data is None:
+            data = self.instanceState()
+        return self.provisioningState(data) == "updating"
 
-    def isVMStopped(self)->bool:
-        # print("test is stopped")
-        if self.isProvissioning():
-            # print("provissioning")
-            return False
-        state = self.powerState()
-        # print(state)
+    def isVMStopped(self, data: dict=None)->bool:
+        if data is None:
+            data = self.instanceState()
+        state = self.powerState(data)
         if state is not None and state == "stopped":
             return True
         else:
             return False
-        
-    def isVMRunning(self)->bool:
-        if self.isProvissioning():
+
+    def isVMDeallocated(self, data: dict=None)->bool:
+        if data is None:
+            data = self.instanceState()
+        state = self.powerState(data)
+        if state is not None and state == 'deallocated':
+            return True
+        else:
             return False
-        state = self.powerState()
+        
+    def isVMRunning(self, data: dict=None)->bool:
+        if data is None:
+            data = self.instanceState()
+        state = self.powerState(data)
         if state is not None and state == "running":
             return True
         else:
