@@ -171,6 +171,10 @@ registered profile[{profile}]
         action = data.action
         profile = data.profile
 
+        if profile not in get_list_of_profiles():
+            print(f"Profile[{profile}] not exists")
+            return
+
         subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
         azOAuth = project.AzOAuth(tenId)
         session = azOAuth.get_session(cliId, cliSec)
