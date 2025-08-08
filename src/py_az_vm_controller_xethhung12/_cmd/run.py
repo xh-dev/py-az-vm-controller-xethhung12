@@ -38,6 +38,9 @@ def main():
     rename_profile_parser = action_parser.add_parser("rename", help="rename profile")
     rename_profile_parser.add_argument("--new-name", type=str, required=True, default=None, help="new name of the profile")
 
+    list_vms = action_parser.add_parser("visible-vm", help="list all vms. (may have problem if having permission issue)")
+
+
     
 
     # modify_profile_parser = action_parser.add_parser("edit", help="edit profile")
@@ -132,7 +135,21 @@ registered profile[{profile}]
             app.set_kv(Entry.with_profile("clientSecret",profile), clientSecret)
             app.set_kv(Entry.with_profile("tenantId",profile), tenantId)
 
-        if action == "register":
+        if action == "visible-vm":
+            if profile not in get_list_of_profiles():
+                print(f"Profile[{profile}] not exists")
+            else:
+                subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
+                azOAuth = project.AzOAuth(tenId)
+                session = azOAuth.get_session(cliId, cliSec)
+                res = session.list_vm(subId, resName)
+                print("Visible VM for this profile: ")
+                if res.status_code == 200:
+                    for vm in res.json()["value"]:
+                        print(f"* {vm['name']}")
+                else:
+                    print(f"error with status `{res.status_code}`, please check if there is permission issue")
+        elif action == "register":
             subscriptionId = data.subscription_id
             resouceGroupName = data.resource_group_name
             clientId = data.client_id

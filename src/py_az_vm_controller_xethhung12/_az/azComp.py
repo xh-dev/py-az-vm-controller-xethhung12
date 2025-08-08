@@ -47,6 +47,19 @@ class AzOAuthSession:
             return self.cached_token['access_token']
         else:
             raise Exception(f"Failed with status: {resp.status_code}")
+    
+    def list_vm(self, subscriptionId:str, resourceGroupName: str):
+        headers = {
+            "Content-Length": str(0),
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.get_token()}"
+        }
+        resp = requests.get(f"https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachines?api-version=2024-11-01",headers=headers)
+        if resp.status_code == 200:
+            return resp
+        else:
+            raise Exception(f"Error with response code: {resp.status_code}")
+        
 
     def vm(self, subscriptionId: str, resourceGroupName: str, vmName: str)->'AzVM':
         return AzVM(self, subscriptionId, resourceGroupName, vmName)
