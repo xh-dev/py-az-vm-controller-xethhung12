@@ -22,7 +22,7 @@ def main():
     profile_parser = resource_parser.add_parser("profiles", help="list app profiles")
 
     profile_parser = resource_parser.add_parser("profile", help="manage app profile")
-    profile_parser.add_argument("--profile", "-p", type=str, required=True, help="Profile to operate")
+    profile_parser.add_argument("--name", "-n", type=str, required=True, help="name of the profile to be operated")
 
     action_parser = profile_parser.add_subparsers(dest="action")
     de_reg_profile_parser = action_parser.add_parser("de-register", help="de-register profile")
@@ -32,6 +32,13 @@ def main():
     reg_profile_parser.add_argument("--client-id", type=str, required=False, default=None, help="Client ID")
     reg_profile_parser.add_argument("--client-secret", type=str, required=False, default=None, help="Client Secret")
     reg_profile_parser.add_argument("--tenant-id", type=str, required=False, default=None, help="Tenant ID")
+
+    show_profile_parser = action_parser.add_parser("show", help="show profile")
+    show_profile_parser.add_argument("--out-cmd", action="store_true", required=False, help="out put as cmd args")
+    rename_profile_parser = action_parser.add_parser("rename", help="rename profile")
+    rename_profile_parser.add_argument("--new-name", type=str, required=True, default=None, help="new name of the profile")
+
+    
 
     # modify_profile_parser = action_parser.add_parser("edit", help="edit profile")
     # modify_profile_parser.add_argument("--subscription-id", type=str, required=False, default=None, help="Subscription ID")
@@ -58,32 +65,37 @@ def main():
 
     resource = data.resource
 
+    def get_list_of_profiles()->[str]:
+        return set([e.profile.name for e in [Entry.laod_from_str(n) for n in app.list() ] if e.has_profile()])
     if resource == "profiles":
-        profiles = set([e.profile.name for e in [Entry.laod_from_str(n) for n in app.list() ] if e.has_profile()])
+        profiles = get_list_of_profiles()
         print(f"Having {len(profiles)} {'profile' if len(profiles) < 2 else 'profiles'}:")
         for p in profiles:
             print(f"* {p}")
     elif resource == "profile":
-        profile=data.profile
+        profile=data.name
         action = data.action
-        if action == "register":
-            #  profile -p s register --subscription-id sid --resource-group-name rgn --client-id cid --client-secret cs --tenant-id tid
-            subscriptionId = data.subscription_id
-            resouceGroupName = data.resource_group_name
-            clientId = data.client_id
-            clientSecret = data.client_secret
-            tenantId = data.tenant_id
-            app.set_kv(Entry.with_profile("subscriptionId",profile), subscriptionId)
-            app.set_kv(Entry.with_profile("resourceGroupName",profile), resouceGroupName)
-            app.set_kv(Entry.with_profile("clientId",profile), clientId)
-            app.set_kv(Entry.with_profile("clientSecret",profile), clientSecret)
-            app.set_kv(Entry.with_profile("tenantId",profile), tenantId)
 
+        def get_profile_data(profile: str) -> (str, str, str, str, str):
             subId =app.get_kv(Entry.with_profile("subscriptionId",profile))
+            if subId is None:
+                raise Exception("Failed to extract subscription ID")
             resName =app.get_kv(Entry.with_profile("resourceGroupName",profile))
+            if resName is None:
+                raise Exception("Failed to extract resource group name")
             cliId=app.get_kv(Entry.with_profile("clientId",profile))
+            if cliId is None:
+                raise Exception("Failed to extract Client ID")
             cliSec=app.get_kv(Entry.with_profile("clientSecret",profile))
+            if cliSec is None:
+                raise Exception("Failed to extract Client Secret")
             tenId=app.get_kv(Entry.with_profile("tenantId",profile))
+            if tenId is None:
+                raise Exception("Failed to extract Tenant ID")
+            return subId, resName, cliId, cliSec, tenId
+
+        def show_profile(profile: str):
+            subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
             print(f"""
 registered profile[{profile}]
     with Subscription ID: {subId}
@@ -92,23 +104,63 @@ registered profile[{profile}]
     with Client Secret: {cliSec}
     with Tenant ID: {tenId}
 """)
+
+        def show_profile_cmd(profile: str):
+            subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
+            print(f'profile --name "{profile}" register --subscription-id "{subId}" --resource-group-name "{resName}" --client-id "{cliId}" --client-secret "{cliSec}" --tenant-id "{tenId}"')
+
+        def delete_profile(profile: str):
+            if profile not in get_list_of_profiles():
+                print(f"Profile[{profile}] not exists")
+            else:
+                # print("getting profile config")
+                # print(Profile(profile))
+                # print(app.list(profile=Profile(profile)))
+                for entryStr in app.list(profile=Profile(profile)):
+                    entry = Entry.laod_from_str(entryStr)
+                    if app.has_kv(entry):
+                        app.rm_kv(entry)
+                    else:
+                        raise Exception(f"Entry[{entry.name()}] not exists, no action")
+        
+        def reg_profile(profile: str, subscriptionId:str, resouceGroupName:str, clientId:str, clientSecret:str, tenantId: str):
+            app.set_kv(Entry.with_profile("subscriptionId",profile), subscriptionId)
+            app.set_kv(Entry.with_profile("resourceGroupName",profile), resouceGroupName)
+            app.set_kv(Entry.with_profile("clientId",profile), clientId)
+            app.set_kv(Entry.with_profile("clientSecret",profile), clientSecret)
+            app.set_kv(Entry.with_profile("tenantId",profile), tenantId)
+
+        if action == "register":
+            subscriptionId = data.subscription_id
+            resouceGroupName = data.resource_group_name
+            clientId = data.client_id
+            clientSecret = data.client_secret
+            tenantId = data.tenant_id
+            reg_profile(profile, subscriptionId, resouceGroupName, clientId, clientSecret, tenantId)
+            show_profile(profile)
         elif action == "de-register":
-            print("getting profile config")
-            print(Profile(profile))
-            print(app.list(profile=Profile(profile)))
-            for entryStr in app.list(profile=Profile(profile)):
-            
-                print(f"Unsetting {entryStr}")
-                entry = Entry.laod_from_str(entryStr)
-                print(entry.name())
-                if app.has_kv(entry):
-                    print(f"Entry[{entry.name()}] exists, deleting")
-                    app.rm_kv(entry)
+            delete_profile(profile)
+            print(f"Profile[{profile}] detele")
+        elif action == "rename":
+            if profile not in get_list_of_profiles():
+                print(f"Profile[{profile}] not exists")
+            else:
+                new_profile_name = data.new_name
+                if new_profile_name in get_list_of_profiles():
+                    print(f"New profile[{new_profile_name}] already exists")
                 else:
-                    print(f"Entry[{entry.name()}] not exists, no action")
-                print(f"Unset {entryStr}")
-        elif action == "edit":
-            pass
+                    subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
+                    reg_profile(new_profile_name, subId, resName, cliId, cliSec, tenId)
+                    show_profile(profile)
+                    delete_profile(profile)
+                    print(f"Profile[{profile}] detele")
+        elif action == "show":
+            if profile not in get_list_of_profiles():
+                print(f"Profile[{profile}] not exists")
+            elif data.out_cmd:
+                show_profile_cmd(profile)
+            else:
+                show_profile(profile)
         else:
             raise Exception(f"Argument not valid")
         pass
@@ -117,21 +169,7 @@ registered profile[{profile}]
         action = data.action
         profile = data.profile
 
-        subId =app.get_kv(Entry.with_profile("subscriptionId",profile))
-        if subId is None:
-            raise Exception("Failed to extract subscription ID")
-        resName =app.get_kv(Entry.with_profile("resourceGroupName",profile))
-        if resName is None:
-            raise Exception("Failed to extract resource group name")
-        cliId=app.get_kv(Entry.with_profile("clientId",profile))
-        if cliId is None:
-            raise Exception("Failed to extract Client ID")
-        cliSec=app.get_kv(Entry.with_profile("clientSecret",profile))
-        if cliSec is None:
-            raise Exception("Failed to extract Client Secret")
-        tenId=app.get_kv(Entry.with_profile("tenantId",profile))
-        if tenId is None:
-            raise Exception("Failed to extract Tenant ID")
+        subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
         azOAuth = project.AzOAuth(tenId)
         session = azOAuth.get_session(cliId, cliSec)
         vm = session.vm(subId, resName, vmname)
