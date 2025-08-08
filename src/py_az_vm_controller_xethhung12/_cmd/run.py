@@ -65,8 +65,27 @@ def main():
 
     resource = data.resource
 
+    def get_profile_data(profile: str) -> (str, str, str, str, str):
+        subId =app.get_kv(Entry.with_profile("subscriptionId",profile))
+        if subId is None:
+            raise Exception("Failed to extract subscription ID")
+        resName =app.get_kv(Entry.with_profile("resourceGroupName",profile))
+        if resName is None:
+            raise Exception("Failed to extract resource group name")
+        cliId=app.get_kv(Entry.with_profile("clientId",profile))
+        if cliId is None:
+            raise Exception("Failed to extract Client ID")
+        cliSec=app.get_kv(Entry.with_profile("clientSecret",profile))
+        if cliSec is None:
+            raise Exception("Failed to extract Client Secret")
+        tenId=app.get_kv(Entry.with_profile("tenantId",profile))
+        if tenId is None:
+            raise Exception("Failed to extract Tenant ID")
+        return subId, resName, cliId, cliSec, tenId
+
     def get_list_of_profiles()->[str]:
         return set([e.profile.name for e in [Entry.laod_from_str(n) for n in app.list() ] if e.has_profile()])
+
     if resource == "profiles":
         profiles = get_list_of_profiles()
         print(f"Having {len(profiles)} {'profile' if len(profiles) < 2 else 'profiles'}:")
@@ -76,23 +95,6 @@ def main():
         profile=data.name
         action = data.action
 
-        def get_profile_data(profile: str) -> (str, str, str, str, str):
-            subId =app.get_kv(Entry.with_profile("subscriptionId",profile))
-            if subId is None:
-                raise Exception("Failed to extract subscription ID")
-            resName =app.get_kv(Entry.with_profile("resourceGroupName",profile))
-            if resName is None:
-                raise Exception("Failed to extract resource group name")
-            cliId=app.get_kv(Entry.with_profile("clientId",profile))
-            if cliId is None:
-                raise Exception("Failed to extract Client ID")
-            cliSec=app.get_kv(Entry.with_profile("clientSecret",profile))
-            if cliSec is None:
-                raise Exception("Failed to extract Client Secret")
-            tenId=app.get_kv(Entry.with_profile("tenantId",profile))
-            if tenId is None:
-                raise Exception("Failed to extract Tenant ID")
-            return subId, resName, cliId, cliSec, tenId
 
         def show_profile(profile: str):
             subId, resName, cliId, cliSec, tenId=get_profile_data(profile)
